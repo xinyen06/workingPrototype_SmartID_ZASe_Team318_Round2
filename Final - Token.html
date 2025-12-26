@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Digital Identity Token & QR Issuer</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Inter', system-ui;
+    background: linear-gradient(to bottom, #2e003e, #3d005a 60%, #4a1a75 100%);
+    color: #e6e9ff;
+    padding: 25px;
+}
+.wrap { max-width: 1000px; margin: auto; }
+.card {
+    background: rgba(255,255,255,0.04);
+    padding: 25px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35), 0 0 15px rgba(0,0,0,0.1) inset;
+    margin-bottom: 25px;
+    backdrop-filter: blur(8px);
+    transition: transform 0.25s, box-shadow 0.25s;
+}
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.45), 0 0 20px rgba(0,0,0,0.12) inset;
+}
+h1 { text-align: center; margin-bottom: 25px; font-size: 34px; font-weight: 700; background: linear-gradient(90deg, #8cf2ff, #a78bfa, #ff9af2); -webkit-background-clip: text; color: transparent; }
+input {
+    width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06); color: #fff; margin-top: 6px; outline: none; transition: 0.3s;
+}
+input:focus { border-color: #84d8ff; box-shadow: 0 0 12px #4cc9ff88; }
+button {
+    padding: 12px 15px; border: none; border-radius: 12px; background: linear-gradient(90deg,#4cc9ff,#a259ff);
+    color: #fff; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.3s;
+}
+button:hover { background: linear-gradient(90deg,#73e3ff,#b889ff); box-shadow: 0 0 15px #9d4bff88; }
+.sigbox {
+    height: 160px; border-radius: 14px; border: 1px dashed rgba(255,255,255,0.3);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+    transition: 0.3s; background: rgba(0,0,0,0.25);
+}
+.sigbox:hover { border-color: #8cf2ff; }
+pre { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; word-break: break-word; font-size: 14px; border: 1px solid rgba(255,255,255,0.1); }
+.fields-container { display: grid; grid-template-columns: repeat(2,1fr); gap: 15px; margin-top: 12px; padding: 18px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07); max-height: 260px; overflow-y: auto; }
+.fields-container label { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.fields-container input[type=checkbox] {
+    appearance: none; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #7ee6ff; background: rgba(0,0,0,0.3); cursor: pointer; position: relative; transition: 0.25s;
+}
+.fields-container input[type=checkbox]:checked { background: #7ee6ff; box-shadow: 0 0 12px #7ee6ffaa; border-color: #a8f2ff; }
+.fields-container input[type=checkbox]:checked::after { content: ""; position: absolute; inset: 5px; background: #002; border-radius: 50%; }
+.mask-option { font-size: 12px; opacity: 0.75; margin-left: 22px; display: flex; align-items: center; gap: 4px; }
+.mask-option input { width: 16px !important; height: 16px !important; }
+.qrbox { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.small { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 5px; }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+<h1>Digital Identity Token & QR Issuer</h1>
+
+<div class="card">
+    <label>Username:</label>
+    <input id="usernameInput" placeholder="Enter your username">
+    <button id="loginBtn">Login</button>
+    <div class="small" id="loginStatus">Idle</div>
+</div>
+
+
+<div class="card" id="issuerPanel" style="display:none">
+    <label>Draw Signature</label>
+    <div class="sigbox"><canvas id="sigCanvas" width="680" height="160"></canvas></div>
+
+    <div>
+        <label>Select Fields to Display</label>
+        <div class="fields-container" id="fieldsContainer">
+            <label><input type="checkbox" value="name"> Name</label>
+            <label><input type="checkbox" value="age"> Age</label>
+            <label>
+              <input type="checkbox" value="ic" id="icField"> IC
+              <span class="mask-option"><input type="checkbox" id="maskIC"> Mask last 4 digits</span>
+            </label>
+            <label><input type="checkbox" value="blood"> Blood Type</label>
+            <label><input type="checkbox" value="email"> Email</label>
+            <label><input type="checkbox" value="address"> Address</label>
+            <label><input type="checkbox" value="emergency"> Emergency Contact</label>
+        </div>
+    </div>
+
+    <button id="verifyBtn">Verify & Issue Token</button>
+    <button id="clearBtn">Clear Signature</button>
+    <span id="status" class="small">Idle</span>
+</div>
+
+
+<div class="card">
+    <div class="qrbox">
+        <div style="width:220px;height:220px;border-radius:12px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center">
+            <canvas id="qrOutput" width="200" height="200"></canvas>
+        </div>
+        <label>Token </label>
+        <pre id="tokenPre">—</pre>
+    </div>
+</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const identityDB = {};
+let failCount = 0;
+
+$('loginBtn').onclick = () => {
+    const username = $('usernameInput').value.trim();
+    const identityStr = localStorage.getItem('identity_'+username);
+    if(!identityStr){ alert('Username not found'); return; }
+    const identity = JSON.parse(identityStr);
+    identityDB[username] = identity;
+    $('issuerPanel').style.display = 'block';
+    $('loginStatus').innerText = 'Logged in as '+username;
+};
+
+const canvas = $('sigCanvas'); 
+const ctx = canvas.getContext('2d');
+ctx.lineWidth = 2; ctx.strokeStyle = '#7ee6ff'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+let drawing = false, points = [];
+
+canvas.addEventListener('pointerdown', e => {
+    drawing = true; points.push({x:e.offsetX, y:e.offsetY, t:Date.now()});
+    ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY);
+});
+canvas.addEventListener('pointermove', e => {
+    if(!drawing) return;
+    const last = points[points.length-1];
+    const p = {x:e.offsetX, y:e.offsetY, t:Date.now()};
+    points.push(p);
+    ctx.quadraticCurveTo(last.x,last.y,(last.x+p.x)/2,(last.y+p.y)/2);
+    ctx.stroke();
+});
+canvas.addEventListener('pointerup', ()=> drawing=false);
+$('clearBtn').onclick = ()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); points=[]; };
+
+
+function hashSig(data){
+    const diffs = [];
+    for(let i=1;i<data.length;i++){
+        diffs.push({dx:data[i].x-data[i-1].x, dy:data[i].y-data[i-1].y, dt:data[i].t-data[i-1].t});
+    }
+    return diffs;
+}
+
+
+function compare(ref, current){
+    if(!ref || !current) return false;
+    const min = Math.min(ref.length, current.length);
+    if(min < 5) return false; 
+
+    let tot = 0;
+    for(let i=0;i<min;i++){
+        
+        tot += Math.abs(ref[i].dx - current[i].dx) * 1.5
+             + Math.abs(ref[i].dy - current[i].dy) * 1.5
+             + Math.abs(ref[i].dt - current[i].dt) * 0.05; 
+    }
+
+    const avgDiff = tot / min;
+
+    
+    return avgDiff < 16; 
+}
+
+
+
+
+function genToken(info, fields){
+    const payload = { exp: Date.now() + 10*60*1000 };
+
+    fields.forEach(f => {
+        if (info[f] !== undefined) {
+
+            
+            if (
+                f === 'ic' &&
+                $('maskIC').checked === true
+            ) {
+                payload[f] = info[f].slice(0, -4) + '****';
+            } else {
+                payload[f] = info[f];
+            }
+
+        }
+    });
+
+    return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+}
+
+$('icField').addEventListener('change', () => {
+    $('maskIC').disabled = !$('icField').checked;
+    if (!$('icField').checked) $('maskIC').checked = false;
+});
+
+
+let freezeCount = 0; 
+let freezeTimeout;
+
+function getFreezeDuration(count){
+    const durations = [10000, 30000, 60000, 120000]; 
+    return durations[Math.min(count, durations.length-1)];
+}
+
+function freezeUser(){
+    const duration = getFreezeDuration(freezeCount); 
+    let remaining = Math.ceil(duration / 1000); 
+
+    $('verifyBtn').disabled = true;
+    document.querySelectorAll('#fieldsContainer input[type=checkbox]').forEach(c => c.disabled=true);
+    $('status').innerText = `Too many failed attempts. Try again in ${remaining} seconds`;
+
+    freezeTimeout = setInterval(()=>{
+        remaining--;
+        if(remaining > 0){
+            $('status').innerText = `Too many failed attempts. Try again in ${remaining} seconds`;
+        } else {
+            clearInterval(freezeTimeout);
+            freezeTimeout = null;
+            $('verifyBtn').disabled = false;
+            document.querySelectorAll('#fieldsContainer input[type=checkbox]').forEach(c => c.disabled=false);
+            $('status').innerText = 'Idle';
+        }
+    }, 1000);
+
+    freezeCount++; 
+}
+
+$('verifyBtn').onclick = ()=>{
+    if(freezeTimeout) return; 
+
+    const username = $('usernameInput').value.trim();
+    const identity = identityDB[username];
+    if(!identity){ alert('Identity not found'); return; }
+    if(points.length < 5){ $('status').innerText='Draw signature to verify'; return; }
+
+    const currentSig = hashSig(points);
+    if(compare(identity.signature, currentSig)){
+        failCount = 0;
+        freezeCount = 0; 
+        const fields = [...document.querySelectorAll('#fieldsContainer input[type=checkbox]:checked')].map(c=>c.value);
+        if(fields.length===0){ alert('Select at least one field'); return; }
+        const token = genToken(identity, fields);
+        $('tokenPre').textContent = token;
+        QRCode.toCanvas($('qrOutput'), token, { width:200 });
+        $('status').innerText='Signature verified — token issued';
+    } else {
+        failCount++;
+        if(failCount >= 3) freezeUser();
+        else $('status').innerText=`Signature mismatch! ${3-failCount} attempts left`;
+    }
+    points=[]; ctx.clearRect(0,0,canvas.width,canvas.height);
+};
+</script>
+</body>
+</html>
