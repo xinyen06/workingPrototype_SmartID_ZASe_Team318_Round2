@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Viewer (Token-based)</title>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+
+body {
+    margin: 0;
+    font-family: 'Inter', system-ui;
+    background: linear-gradient(to bottom, #2e003e, #3d005a 60%, #4a1a75 100%);
+    color: #e6e9ff;
+    padding: 25px;
+}
+
+.wrap { max-width: 900px; margin: auto; }
+
+
+.card {
+    background: rgba(255,255,255,0.04);
+    padding: 25px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35), 0 0 15px rgba(0,0,0,0.1) inset;
+    margin-bottom: 25px;
+    backdrop-filter: blur(8px);
+    transition: transform 0.25s, box-shadow 0.25s;
+}
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.45), 0 0 20px rgba(0,0,0,0.12) inset;
+}
+
+
+h1, h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+h1 {
+    font-size: 32px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #8cf2ff, #a78bfa, #ff9af2);
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+
+input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    margin-top: 6px;
+    outline: none;
+    transition: 0.3s;
+}
+input:focus {
+    border-color: #84d8ff;
+    box-shadow: 0 0 12px #4cc9ff88;
+}
+
+
+button {
+    padding: 12px 15px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(90deg,#4cc9ff,#a259ff);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 10px;
+    transition: 0.3s;
+}
+button:hover {
+    background: linear-gradient(90deg,#73e3ff,#b889ff);
+    box-shadow: 0 0 15px #9d4bff88;
+}
+
+
+.small {
+    font-size: 13px;
+    color: rgba(255,255,255,0.65);
+    margin-top: 5px;
+}
+#countdown {
+    font-weight: bold;
+    margin-top: 5px;
+    color: #fff;
+}
+
+
+#reader {
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-top: 10px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+
+#infoDisplay {
+    background: rgba(255,255,255,0.05);
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 4px;
+}
+.info-key {
+    font-weight: 600;
+    color: #ffd700;
+}
+.info-value {
+    color: #fff;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Viewer — Scan Token</h1>
+
+
+<div class="card">
+<label>Scan QR Code or paste token</label>
+<div id="reader"></div>
+<input id="tokenInput" placeholder="Paste token here">
+<button id="decodeBtn">Decode & View</button>
+<div id="status" class="small">Idle</div>
+<div id="countdown"></div>
+</div>
+
+
+<div class="card">
+<h2>Visible Information</h2>
+<div id="infoDisplay">—</div>
+</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let countdownInterval;
+const usedTokens = new Set(); 
+
+function decodeToken(token){
+    try { return JSON.parse(decodeURIComponent(escape(atob(token)))); } catch(e) { return null; }
+}
+
+
+function maskIC(ic){ 
+    if(!ic) return ''; 
+    if(ic.length <= 4) return '****'; 
+    return ic.slice(0,-4)+'****'; 
+}
+
+
+function getFieldName(key){
+    if(key === 'emergency') return 'EMERGENCY CONTACT';
+    return key.toUpperCase();
+}
+
+
+function displayInfo(token){
+    if(usedTokens.has(token)){
+        $('status').innerText='Token already used';
+        $('infoDisplay').innerHTML='—';
+        return;
+    }
+
+    const payload = decodeToken(token);
+    if(!payload){ 
+        $('status').innerText='Invalid token'; 
+        $('infoDisplay').innerHTML='—'; 
+        return; 
+    }
+
+    const now = Date.now();
+    if(payload.exp && now > payload.exp){
+        $('status').innerText='Token expired'; 
+        $('infoDisplay').innerHTML='—'; 
+        clearInterval(countdownInterval); 
+        return;
+    }
+
+    $('status').innerText='Token valid';
+    usedTokens.add(token); 
+
+  
+    clearInterval(countdownInterval);
+    if(payload.exp){
+        countdownInterval = setInterval(()=>{
+            const remaining = payload.exp - Date.now();
+            if(remaining <= 0){
+                $('countdown').innerText='Token expired'; 
+                clearInterval(countdownInterval); 
+                $('infoDisplay').innerHTML='—'; 
+                $('status').innerText='Token expired';
+                return;
+            }
+            const s = Math.floor(remaining/1000);
+            $('countdown').innerText='Expires in: '+s+'s';
+        },500);
+    } else {$('countdown').innerText='';}
+
+  
+    const infoDiv = $('infoDisplay');
+    infoDiv.innerHTML = '';
+    for(const key in payload){
+        if(key==='exp') continue;
+        let value = payload[key];
+        if(key==='ic') value = maskIC(value);
+        const row = document.createElement('div');
+        row.className='info-row';
+        const k = document.createElement('div'); 
+        k.className='info-key'; 
+        k.innerText = getFieldName(key); 
+        const v = document.createElement('div'); 
+        v.className='info-value'; 
+        v.innerText = value;
+        row.appendChild(k); 
+        row.appendChild(v);
+        infoDiv.appendChild(row);
+    }
+}
+
+
+$('decodeBtn').onclick = ()=>{
+    const t = $('tokenInput').value.trim();
+    if(t) displayInfo(t);
+};
+
+
+const html5QrCode = new Html5Qrcode("reader");
+html5QrCode.start({facingMode:"environment"},{fps:10,qrbox:250},
+    qrCodeMessage=>{
+        $('tokenInput').value = qrCodeMessage; 
+        displayInfo(qrCodeMessage);
+    },
+    errorMessage=>{}
+).catch(err=>console.warn("QR init error:",err));
+</script>
+</body>
+</html>

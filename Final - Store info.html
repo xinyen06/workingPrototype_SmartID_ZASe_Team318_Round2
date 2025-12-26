@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Personal Data Storage</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<style>
+
+body {
+    margin: 0;
+    font-family: 'Inter', system-ui;
+    background: linear-gradient(to bottom, #2e003e, #3d005a 60%, #4a1a75 100%);
+    color: #e6e9ff;
+    padding: 25px;
+}
+
+.wrap {
+    max-width: 1000px;
+    margin: auto;
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 25px;
+    font-size: 34px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #8cf2ff, #a78bfa, #ff9af2);
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+
+.card {
+    background: rgba(255,255,255,0.04);
+    padding: 25px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35), 0 0 15px rgba(0,0,0,0.1) inset;
+    margin-bottom: 25px;
+    backdrop-filter: blur(8px);
+    transition: transform 0.25s, box-shadow 0.25s;
+}
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.45), 0 0 20px rgba(0,0,0,0.12) inset;
+}
+
+
+.form-container {
+    display: flex;
+    gap: 40px; 
+    flex-wrap: wrap;
+}
+.form-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+
+label {
+    font-size: 14px;
+    color: #cfcfff;
+    margin-bottom: 4px;
+}
+
+input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    outline: none;
+    transition: 0.3s, box-shadow 0.3s;
+}
+input::placeholder {
+    color: rgba(255,255,255,0.5);
+}
+input:focus {
+    border-color: #b68cff;
+    box-shadow: 0 0 12px #b68cff88, 0 0 20px #b68cff55 inset;
+}
+
+
+button {
+    padding: 12px 15px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(90deg,#4cc9ff,#a259ff);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 10px;
+    transition: 0.3s, box-shadow 0.3s;
+}
+button:hover {
+    background: linear-gradient(90deg,#73e3ff,#b889ff);
+    box-shadow: 0 0 20px #9d4bff88, 0 0 12px #73e3ff55 inset;
+}
+
+.sigbox {
+    height: 180px;
+    border-radius: 14px;
+    border: 1px dashed rgba(255,255,255,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 12px;
+    touch-action: none;
+    background: rgba(0,0,0,0.25);
+    transition: 0.3s, box-shadow 0.3s;
+}
+.sigbox:hover {
+    border-color: #b68cff;
+    box-shadow: 0 0 20px #b68cff55 inset, 0 0 12px #b68cff88;
+}
+
+
+#status {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    font-weight: 600;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+}
+.green { color:#00ffaa }
+.red { color:#ff6e6e }
+.yellow { color:#ffe08a }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h2>Personal Data & Signature Storage</h2>
+
+<div class="card">
+  <div class="form-container">
+    <div class="form-col">
+      <div><label>Username</label><input id="username" placeholder="e.g. johndoe123"></div>
+      <div><label>Name</label><input id="name" placeholder="e.g. John Doe"></div>
+      <div><label>Age</label><input id="age" placeholder="e.g. 30"></div>
+      <div><label>IC</label><input id="ic" placeholder="e.g. 123456-78-9012"></div>
+    </div>
+    <div class="form-col">
+      <div><label>Blood Type</label><input id="blood" placeholder="e.g. O+"></div>
+      <div><label>Email</label><input id="email" placeholder="e.g. john@example.com"></div>
+      <div><label>Address</label><input id="address" placeholder="e.g. 123 Street, City"></div>
+      <div><label>Emergency Contact</label><input id="emergency" placeholder="e.g. +6012-3456789"></div>
+    </div>
+  </div>
+
+  <p>Draw signature:</p>
+  <div class="sigbox"><canvas id="sigCanvas" width="680" height="180"></canvas></div>
+
+  <button id="saveBtn">Sign Up</button>
+  <div id="status" class="yellow">Fill info and draw signature</div>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById('sigCanvas'); 
+const ctx=canvas.getContext('2d');
+ctx.lineWidth=2; ctx.strokeStyle='#b68cff'; ctx.lineCap='round'; ctx.lineJoin='round';
+let drawing=false,points=[];
+canvas.addEventListener('pointerdown',e=>{drawing=true; points.push({x:e.offsetX,y:e.offsetY,t:Date.now()}); ctx.beginPath(); ctx.moveTo(e.offsetX,e.offsetY);});
+canvas.addEventListener('pointermove',e=>{if(!drawing)return; const last=points[points.length-1]; const p={x:e.offsetX,y:e.offsetY,t:Date.now()}; points.push(p); ctx.quadraticCurveTo(last.x,last.y,(last.x+p.x)/2,(last.y+p.y)/2); ctx.stroke();});
+canvas.addEventListener('pointerup',()=>{drawing=false;}); canvas.addEventListener('pointerleave',()=>{drawing=false;});
+
+function hashSig(data){
+    const diffs=[];
+    for(let i=1;i<data.length;i++){
+        diffs.push({dx:data[i].x-data[i-1].x, dy:data[i].y-data[i-1].y, dt:data[i].t-data[i-1].t});
+    }
+    return diffs;
+}
+
+document.getElementById('saveBtn').onclick=()=>{
+  const username=document.getElementById('username').value.trim();
+  const name=document.getElementById('name').value.trim();
+  const age=document.getElementById('age').value.trim();
+  const ic=document.getElementById('ic').value.trim();
+  const blood=document.getElementById('blood').value.trim();
+  const email=document.getElementById('email').value.trim();
+  const address=document.getElementById('address').value.trim();
+  const emergency=document.getElementById('emergency').value.trim();
+  const status=document.getElementById('status');
+
+  if(!username||!name||!age||!ic||!blood||!email||!address||!emergency){
+      status.innerText='Please fill all info!'; 
+      status.className='red';
+      return;
+  }
+  if(points.length<5){status.innerText='Draw signature!'; status.className='red';return;}
+
+  const sig=hashSig(points);
+  const identity={username,name,age,ic,blood,email,address,emergency,signature:sig};
+  localStorage.setItem('identity_'+username,JSON.stringify(identity));
+
+  status.innerText='Sign up complete! You can login next time.';
+  status.className='green';
+  points=[]; ctx.clearRect(0,0,canvas.width,canvas.height);
+};
+</script>
+</body>
+</html>
